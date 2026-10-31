@@ -421,5 +421,13 @@
   "Revoke pending invitations before creating more (limit: 1000)": "Отзовите ожидающие приглашения перед созданием новых (лимит: 1000)",
   "Use the email address specified in this invitation": "Используйте почту, указанную в приглашении",
   "The invited shared space is no longer available": "Общее пространство из приглашения больше недоступно",
-  "This email already has an account. Sign in and ask the administrator to add you to the space.": "Аккаунт с такой почтой уже есть. Войдите и попросите администратора добавить вас в пространство."
+  "This email already has an account. Sign in and ask the administrator to add you to the space.": "Аккаунт с такой почтой уже есть. Войдите и попросите администратора добавить вас в пространство.",
+  "Other spaces": "Другие пространства",
+  "Administrator access": "Доступ администратора",
+  "These spaces are available through your administrator role; you are not a member.": "Эти пространства доступны вам благодаря правам администратора. Вы не являетесь их участником.",
+  "Navigation": "Навигация",
+  "Page": "Страница",
+  "Content": "Содержимое",
+  "{0} vertical scroll": "{0}: вертикальная прокрутка",
+  "{0} horizontal scroll": "{0}: горизонтальная прокрутка"
 }

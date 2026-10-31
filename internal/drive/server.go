@@ -304,7 +304,7 @@ func Run() error {
 	// FileFromFS rewrites the request path to /index.html, which Go's
 	// FileServer redirects to ./, sending requests for / back to / forever.
 	r.GET("/", func(c *gin.Context) { c.Data(http.StatusOK, "text/html; charset=utf-8", index) })
-	for _, name := range []string{"i18n.js", "i18n-ru.json", "app.js", "browser.js", "settings.js", "sharing.js", "invitations.js", "style.css", "magnet-icon.png"} {
+	for _, name := range []string{"i18n.js", "i18n-ru.json", "app.js", "browser.js", "settings.js", "sharing.js", "invitations.js", "scrollbars.js", "scrollbars.css", "style.css", "magnet-icon.png"} {
 		r.GET("/"+name, func(c *gin.Context) { c.FileFromFS(strings.TrimPrefix(c.Request.URL.Path, "/"), http.FS(assets)) })
 	}
 	srv := &http.Server{Addr: cfg.Listen, Handler: r, ReadTimeout: time.Hour, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}

@@ -15,10 +15,11 @@ type Space struct {
 	Quota     int64  `db:"quota_bytes" json:"quota_bytes"`
 	Used      int64  `db:"used_bytes" json:"used_bytes"`
 	Role      string `db:"role" json:"role"`
+	Joined    bool   `db:"is_member" json:"joined"`
 }
 
 const spaceAccessFrom = ` FROM spaces s JOIN users space_owner ON space_owner.id=s.owner_id JOIN users actor ON actor.id=? AND actor.deleted_at IS NULL LEFT JOIN members m ON m.space_id=s.id AND m.user_id=actor.id WHERE (actor.is_admin=TRUE OR m.user_id IS NOT NULL)`
-const spaceColumns = `SELECT s.*,space_owner.name owner_name,CASE WHEN actor.is_admin=TRUE THEN 'owner' ELSE m.role END role,`
+const spaceColumns = `SELECT s.*,space_owner.name owner_name,(m.user_id IS NOT NULL) is_member,CASE WHEN actor.is_admin=TRUE THEN 'owner' ELSE m.role END role,`
 const spaceStatSelect = spaceColumns + `0 used_bytes`
 const spaceListSelect = spaceColumns + `COALESCE((SELECT SUM(v.size) FROM versions v JOIN entries e ON e.id=v.entry_id WHERE e.space_id=s.id),0) used_bytes`
 
