@@ -1,0 +1,7 @@
+/magnetdrive.yaml
+/data/
+/MagnetDrive
+/MagnetDrive.exe
+*.log
+/.cache/
+.idea

@@ -1,0 +1,27 @@
+listen: "127.0.0.1:8090"
+public_url: "http://localhost:8090"
+# Trust forwarded client IP headers only from the reverse proxy's actual IP/CIDR.
+# Loopback proxies (including local Caddy) are trusted when this key is omitted.
+# Set [] to ignore forwarded client IP headers entirely.
+trusted_proxies:
+  - "127.0.0.0/8"
+  - "::1/128"
+data_dir: "./data"
+max_upload_bytes: 2147483648
+space_quota_bytes: 107374182400
+registration: false # Enable temporarily to create trusted local accounts.
+sftp:
+  listen: "127.0.0.1:2022" # Empty disables SFTP. Use :2022 to accept remote connections.
+  host_key: "" # Defaults to data_dir/sftp_host_ed25519; generated once if absent.
+database:
+  host: "127.0.0.1"
+  port: 3306
+  user: "magnetdrive"
+  password: ""
+  name: "magnetdrive"
+  tls: "false" # Use true for a remote database with a trusted certificate.
+oidc:
+  issuer: ""
+  client_id: ""
+  client_secret: ""
+  label: "OpenID Connect"
