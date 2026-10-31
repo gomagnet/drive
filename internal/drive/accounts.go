@@ -282,7 +282,7 @@ func (a *App) adminDeleteUser(c *gin.Context) {
 		return
 	}
 	// Keep audit references valid while removing identity and every access path.
-	for _, q := range []string{"DELETE FROM invitations WHERE created_by=?", "DELETE FROM sessions WHERE user_id=?", "DELETE FROM identities WHERE user_id=?", "DELETE FROM sftp_credentials WHERE user_id=?", "DELETE FROM members WHERE user_id=?", "DELETE FROM shares WHERE created_by=?"} {
+	for _, q := range []string{"DELETE FROM api_keys WHERE user_id=?", "DELETE FROM invitations WHERE created_by=?", "DELETE FROM sessions WHERE user_id=?", "DELETE FROM identities WHERE user_id=?", "DELETE FROM sftp_credentials WHERE user_id=?", "DELETE FROM members WHERE user_id=?", "DELETE FROM shares WHERE created_by=?"} {
 		if _, e = tx.ExecContext(c, q, id); e != nil {
 			problem(c, e)
 			return

@@ -149,7 +149,7 @@ func Run() error {
 				return
 			case <-ticker.C:
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				for _, table := range []string{"sessions", "login_states", "shares", "invitations"} {
+				for _, table := range []string{"sessions", "login_states", "shares", "invitations", "api_keys"} {
 					if _, e := db.ExecContext(ctx, "DELETE FROM "+table+" WHERE expires_at<UTC_TIMESTAMP(6)"); e != nil {
 						log.Printf("expiry cleanup %s: %v", table, e)
 					}
@@ -234,11 +234,13 @@ func Run() error {
 			c.Header("Strict-Transport-Security", "max-age=31536000")
 		}
 		if c.Request.Method != "GET" && c.Request.Method != "HEAD" {
-			if c.GetHeader("Origin") != a.cfg.PublicURL {
+			// Only the bearer-only versioned API accepts requests without Origin.
+			programmatic := strings.HasPrefix(c.Request.URL.Path, "/api/v1/") && c.GetHeader("Origin") == ""
+			if c.GetHeader("Origin") != a.cfg.PublicURL && !programmatic {
 				fail(c, 403, "Request origin rejected")
 				return
 			}
-			if c.Request.URL.Path != "/api/upload" {
+			if c.Request.URL.Path != "/api/upload" && c.Request.URL.Path != "/api/v1/files/upload" {
 				c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
 			}
 		}
@@ -271,6 +273,9 @@ func Run() error {
 	admin.POST("/invitations", a.createInvitation)
 	admin.DELETE("/invitations/:id", a.revokeInvitation)
 	api.POST("/logout", a.logout)
+	api.GET("/keys", a.listAPIKeys)
+	api.POST("/keys", a.createAPIKey)
+	api.DELETE("/keys/:id", a.revokeAPIKey)
 	api.GET("/sftp", a.sftpCredentials)
 	api.POST("/sftp/credentials", a.createSFTPCredential)
 	api.DELETE("/sftp/credentials/:id", a.deleteSFTPCredential)
@@ -296,6 +301,7 @@ func Run() error {
 	api.GET("/entries/:id/shares", a.shares)
 	api.POST("/entries/:id/shares", a.share)
 	api.DELETE("/shares/:id", a.revoke)
+	a.apiRoutes(r)
 	assets, _ := fs.Sub(web.Files, ".")
 	index, err := web.Files.ReadFile("index.html")
 	if err != nil {
@@ -304,7 +310,7 @@ func Run() error {
 	// FileFromFS rewrites the request path to /index.html, which Go's
 	// FileServer redirects to ./, sending requests for / back to / forever.
 	r.GET("/", func(c *gin.Context) { c.Data(http.StatusOK, "text/html; charset=utf-8", index) })
-	for _, name := range []string{"i18n.js", "i18n-ru.json", "app.js", "browser.js", "settings.js", "sharing.js", "invitations.js", "scrollbars.js", "scrollbars.css", "style.css", "magnet-icon.png"} {
+	for _, name := range []string{"i18n.js", "i18n-ru.json", "app.js", "browser.js", "settings.js", "sharing.js", "invitations.js", "api-keys.js", "openapi.json", "scrollbars.js", "scrollbars.css", "style.css", "magnet-icon.png"} {
 		r.GET("/"+name, func(c *gin.Context) { c.FileFromFS(strings.TrimPrefix(c.Request.URL.Path, "/"), http.FS(assets)) })
 	}
 	srv := &http.Server{Addr: cfg.Listen, Handler: r, ReadTimeout: time.Hour, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}

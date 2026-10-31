@@ -42,6 +42,10 @@ func validName(s string) bool {
 	return utf8.ValidString(s) && len(s) > 0 && len(s) <= 255 && s == strings.TrimSpace(s) && s != "." && s != ".." && !strings.ContainsAny(s, "/\\\x00\r\n")
 }
 func (a *App) access(c *gin.Context, space int64, write bool) bool {
+	if e := checkAPIKey(c, a.db, space, write); e != nil {
+		fail(c, 403, "API key does not permit access to this space")
+		return false
+	}
 	if c.MustGet("user").(User).Admin {
 		var id int64
 		if e := a.db.GetContext(c, &id, "SELECT id FROM spaces WHERE id=?", space); e != nil {
@@ -72,6 +76,9 @@ func (a *App) entry(c *gin.Context, write bool) (Entry, bool) {
 func lockSpace(c context.Context, tx *sqlx.Tx, space, user int64, write bool) error {
 	var id int64
 	if e := tx.GetContext(c, &id, "SELECT id FROM spaces WHERE id=? FOR UPDATE", space); e != nil {
+		return e
+	}
+	if e := checkAPIKey(c, tx, space, write); e != nil {
 		return e
 	}
 	var admin bool
@@ -125,13 +132,47 @@ func (a *App) entries(c *gin.Context) {
 		q += "AND LOCATE(?,e.name)>0 "
 		args = append(args, search)
 	}
-	q += "ORDER BY e.folder DESC,e.updated_at DESC LIMIT 1000"
+	limit := 1000
+	versioned := c.Value(apiKeyIDContext) != nil
+	if versioned {
+		limit = 200
+		if value := c.Query("limit"); value != "" {
+			n, e := strconv.Atoi(value)
+			if e != nil || n < 1 || n > 1000 {
+				fail(c, 400, "Use a limit of 1–1000 and a non-negative after cursor")
+				return
+			}
+			limit = n
+		}
+		after := int64(0)
+		if value := c.Query("after"); value != "" {
+			n, e := strconv.ParseInt(value, 10, 64)
+			if e != nil || n < 0 {
+				fail(c, 400, "Use a limit of 1–1000 and a non-negative after cursor")
+				return
+			}
+			after = n
+		}
+		q += "AND e.id>? ORDER BY e.id ASC LIMIT ?"
+		args = append(args, after, limit+1)
+	} else {
+		q += "ORDER BY e.folder DESC,e.updated_at DESC LIMIT 1000"
+	}
 	list := []Entry{}
 	if e := a.db.SelectContext(c, &list, q, args...); e != nil {
 		problem(c, e)
 		return
 	}
-	c.JSON(200, gin.H{"entries": list, "limit": 1000})
+	if versioned {
+		next := ""
+		if len(list) > limit {
+			list = list[:limit]
+			next = strconv.FormatInt(list[len(list)-1].ID, 10)
+		}
+		c.JSON(200, gin.H{"entries": list, "limit": limit, "next_cursor": next})
+		return
+	}
+	c.JSON(200, gin.H{"entries": list, "limit": limit})
 }
 func (a *App) folder(c *gin.Context) {
 	var in struct {
@@ -157,7 +198,11 @@ func (a *App) folder(c *gin.Context) {
 		fail(c, 409, "Folder unavailable or name already exists")
 		return
 	}
-	_, e = tx.ExecContext(c, "INSERT INTO entries(space_id,parent_id,name,folder,created_by,edited_by) VALUES(?,?,?,TRUE,?,?)", in.Space, in.Parent, in.Name, uid(c), uid(c))
+	res, e := tx.ExecContext(c, "INSERT INTO entries(space_id,parent_id,name,folder,created_by,edited_by) VALUES(?,?,?,TRUE,?,?)", in.Space, in.Parent, in.Name, uid(c), uid(c))
+	var id int64
+	if e == nil {
+		id, e = res.LastInsertId()
+	}
 	if e == nil {
 		e = tx.Commit()
 	}
@@ -165,7 +210,7 @@ func (a *App) folder(c *gin.Context) {
 		problem(c, e)
 		return
 	}
-	c.Status(201)
+	c.JSON(201, gin.H{"id": id})
 }
 func (a *App) upload(c *gin.Context) {
 	if !a.access(c, number(c.Query("space")), true) {

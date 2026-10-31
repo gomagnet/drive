@@ -25,7 +25,13 @@ const spaceListSelect = spaceColumns + `COALESCE((SELECT SUM(v.size) FROM versio
 
 func (a *App) spaces(c *gin.Context) {
 	list := []Space{}
-	e := a.db.SelectContext(c, &list, spaceListSelect+spaceAccessFrom+" ORDER BY (s.personal AND s.owner_id=actor.id) DESC,s.name,s.id", uid(c))
+	query := spaceListSelect + spaceAccessFrom
+	args := []any{uid(c)}
+	if space, ok := c.Get(apiKeySpaceContext); ok {
+		query += " AND s.id=?"
+		args = append(args, space)
+	}
+	e := a.db.SelectContext(c, &list, query+" ORDER BY (s.personal AND s.owner_id=actor.id) DESC,s.name,s.id", args...)
 	if e != nil {
 		problem(c, e)
 		return
@@ -203,7 +209,12 @@ func (a *App) share(c *gin.Context) {
 		v := time.Now().UTC().Add(time.Duration(*in.Days) * 24 * time.Hour)
 		expires = &v
 	}
-	_, e := a.db.ExecContext(c, "INSERT INTO shares(token_hash,entry_id,created_by,expires_at) VALUES(?,?,?,?)", digest(token), ent.ID, uid(c), expires)
+	res, e := a.db.ExecContext(c, "INSERT INTO shares(token_hash,entry_id,created_by,expires_at) VALUES(?,?,?,?)", digest(token), ent.ID, uid(c), expires)
+	if e != nil {
+		problem(c, e)
+		return
+	}
+	id, e := res.LastInsertId()
 	if e != nil {
 		problem(c, e)
 		return
@@ -214,7 +225,7 @@ func (a *App) share(c *gin.Context) {
 	if in.Direct {
 		link = directURL
 	}
-	c.JSON(201, gin.H{"url": link, "preview_url": previewURL, "direct_url": directURL, "expires_at": expires})
+	c.JSON(201, gin.H{"id": id, "url": link, "preview_url": previewURL, "direct_url": directURL, "expires_at": expires})
 }
 func (a *App) revoke(c *gin.Context) {
 	var space int64

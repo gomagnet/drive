@@ -67,3 +67,12 @@ CREATE TABLE IF NOT EXISTS sftp_credentials (
  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
  FOREIGN KEY(user_id) REFERENCES users(id), INDEX credentials_by_user(user_id)
 ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS api_keys (
+ id BIGINT PRIMARY KEY AUTO_INCREMENT, user_id BIGINT NOT NULL,
+ token_hash CHAR(64) NOT NULL UNIQUE, key_prefix VARCHAR(24) NOT NULL,
+ name VARCHAR(160) NOT NULL, access_scope VARCHAR(8) NOT NULL,
+ space_id BIGINT NULL, expires_at DATETIME(6) NULL, last_used_at DATETIME(6) NULL,
+ created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+ FOREIGN KEY(user_id) REFERENCES users(id), FOREIGN KEY(space_id) REFERENCES spaces(id),
+ INDEX keys_by_user(user_id), INDEX api_key_expiration(expires_at)
+) ENGINE=InnoDB;
